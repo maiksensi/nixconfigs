@@ -6,11 +6,10 @@
 
 let zsh = "/run/current-system/sw/bin/zsh";
     home = "/home/maiksen";
-
-    user = { # don't forget to set a password with passwd
+    maiksen = { # don't forget to set a password with passwd
       name = "maiksen";
-      group = "users";
-      extraGroups = ["networkmanager" "wheel"];
+      group = "maiksen";
+      extraGroups = ["networkmanager" "wheel" "smbgrp"];
       uid = 1000;
       createHome = true;
       home = home;
@@ -21,6 +20,14 @@ let zsh = "/run/current-system/sw/bin/zsh";
       url = "https://github.com/zsh-users/antigen";
       rev = "1d212d149d039cc8d7fdf90c016be6596b0d2f6b";
       sha256 = "1c7ipgs8gvxng3638bipcj8c1s1dn3bb97j8c73piv2xgk42aqb9";
+    };
+
+    anna = {
+      name = "anna";
+      group = "anna";
+      extraGroups = ["smbgrp"];
+      createHome = false;
+      shell = pkgs.nologin; 
     };
 
 in {
@@ -50,14 +57,17 @@ in {
   # List packages installed in system profile. To search by name, run:
   # $ nix-env -qaP | grep wget
 
-  users.extraUsers.maiksen = user;
+  users.extraUsers.maiksen = maiksen;
+  users.extraUsers.anna = anna;
+  users.groups = {anna = {}; maiksen = {}; smbgrp = {};};
   users.extraGroups.sudo.members = ["maiksen"];
   environment.systemPackages = with pkgs; [
      wget
      curl
      emacs
      git # antigen needs it
-     homesick 
+     homesick # manage homefiles
+     samba
    ];
 
   # List services that you want to enable:
@@ -69,12 +79,41 @@ in {
     passwordAuthentication = false;
   };
 
-   #services.openssh.enable = true;
-   #services.openssh.permitRootLogin = "no";
+
 
   # enable samba server
-  services.samba.enable = true;
+  # create both users afterwards with
+  # smbpasswd -a maiksen
+  # smbpasswd -a anna
+  services.samba = {
+    enable = true;
+    invalidUsers = ["root"];
+    extraConfig = ''
+      security = user
+      invalid users  = ["root"]
+      workgroup = WORKGROUP
+      netbios name = samba
+      interfaces = enp0s18
+      log file = /var/log/samba/myshares
+      log level = 1
+      map to guest = Bad User
+    '';
 
+    shares = {
+      data = {
+        path = "/srv/data/";
+	public = "yes";
+	"guest ok" = "no";
+	writeable = "yes";
+	"valid users" = "@smbgrp";
+	"create mask" = 0770;
+	"directory mask" = 0770;
+	"force group" = "smbgrp";
+        browsable = "yes";
+        comment = "Your data share";
+      };
+    };
+  };
 
   programs.zsh = {
     enable = true;
@@ -103,5 +142,10 @@ in {
 
   # The NixOS release to be compatible with for stateful data such as databases.
   system.stateVersion = "17.03";
+
+networking.firewall.enable = true;
+networking.firewall.allowPing = true;
+networking.firewall.allowedTCPPorts = [ 445 139 41678 22];
+networking.firewall.allowedUDPPorts = [ 137 138 ];
 
 }
