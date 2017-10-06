@@ -14,7 +14,9 @@ let zsh = "/run/current-system/sw/bin/zsh";
       createHome = true;
       home = home;
       shell = zsh;
-      openssh.authorizedKeys.keys = ["ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQDADRTn85x2+6kWlfX0s8fbPZSyKBlBRQS+szVIp8QruiOgeOfoULFjfexKbQHa9IPKAJ4Vj2MhJWQNW4qRvltEHUk6koSgjgZ6DSuUEDq3Rc5pJeDCP2k7ib2qyE0X6aDtlGHGOK1MgiALpc6aTrtxR6uE6rI8GG/cJTzk08QjExynguVWYwxyjdMegCXo+82S9ZqKVoEBIy51m5W4Vsh5jKgiM+27EnRWy6BbsvDJiEgtLBknA9X2OxDKFl75Qmo/hSZ+RypAcU4a9pBKYcF4/jOQQ+Sbn9RzFVFP66tVODdH5eZG7xnH7mpg0fHvdiuEdXfb/IZ0KK2t3WF7rnQ7 maiksen@faulbook"];
+      openssh.authorizedKeys.keys = ["ssh-rsa 
+AAAAB3NzaC1yc2EAAAADAQABAAABAQDADRTn85x2+6kWlfX0s8fbPZSyKBlBRQS+szVIp8QruiOgeOfoULFjfexKbQHa9IPKAJ4Vj2MhJWQNW4qRvltEHUk6koSgjgZ6DSuUEDq3Rc5pJeDCP2k7ib2qyE0X6aDtlGHGOK1MgiALpc6aTrtxR6uE6rI8GG/cJTzk08QjExynguVWYwxyjdMegCXo+82S9ZqKVoEBIy51m5W4Vsh5jKgiM+27EnRWy6BbsvDJiEgtLBknA9X2OxDKFl75Qmo/hSZ+RypAcU4a9pBKYcF4/jOQQ+Sbn9RzFVFP66tVODdH5eZG7xnH7mpg0fHvdiuEdXfb/IZ0KK2t3WF7rnQ7 
+maiksen@faulbook"];
     };
     antigen = pkgs.fetchgit {
       url = "https://github.com/zsh-users/antigen";
@@ -43,6 +45,9 @@ in {
   boot.loader.grub.device = "/dev/sda"; # or "nodev" for efi only
 
   networking.hostName = "samba"; # Define your hostname.
+
+  # The NixOS release to be compatible with for stateful data such as databases.
+  system.stateVersion = "17.03";
 
   # Select internationalisation properties.
   i18n = {
@@ -75,6 +80,7 @@ in {
   # Enable the OpenSSH daemon.
   services.openssh = {
     enable = true;
+    ports = [41678];
     permitRootLogin = "no";
     passwordAuthentication = false;
   };
@@ -97,22 +103,45 @@ in {
       log file = /var/log/samba/myshares
       log level = 1
       map to guest = Bad User
-    '';
+      dns proxy = no
+      server string = SambaServer
 
-    shares = {
-      data = {
-        path = "/srv/data/";
-	public = "yes";
-	"guest ok" = "no";
-	writeable = "yes";
-	"valid users" = "@smbgrp";
-	"create mask" = 0770;
-	"directory mask" = 0770;
-	"force group" = "smbgrp";
-        browsable = "yes";
-        comment = "Your data share";
-      };
-    };
+      [data]
+      path = /srv/data/
+      public = yes
+      guest ok = no
+      writeable = yes
+      valid users = @smbgrp
+      create mask = 0770
+      directory mask = 0770
+      force group = smbgrp
+      browsable = yes
+      comment = "Your data share"
+
+      [maik]
+      path = /srv/maik/
+      valid users = maiksen
+      read only = no
+      browseable = yes
+      guest ok = no
+      create mask = 0770
+      directory mask = 0770
+      force user = maiksen
+      force group = maiksen
+      comment = "My data share"
+
+      [anna]
+      path = /srv/anna/
+      valid users = anna
+      read only = no
+      browseable = yes
+      guest ok = no
+      create mask = 0770
+      directory mask = 0770
+      force user = anna
+      force group = anna
+      comment = "My data share"
+      '';
   };
 
   programs.zsh = {
@@ -139,9 +168,6 @@ in {
       antigen apply     
     '';
   };
-
-  # The NixOS release to be compatible with for stateful data such as databases.
-  system.stateVersion = "17.03";
 
 networking.firewall.enable = true;
 networking.firewall.allowPing = true;
