@@ -85,7 +85,8 @@ in {
     passwordAuthentication = false;
   };
 
-
+  system.autoUpgrade.enable = true;
+  
 
   # enable samba server
   # create both users afterwards with
