@@ -14,8 +14,8 @@ let zsh = "/run/current-system/sw/bin/zsh";
       createHome = true;
       home = home;
       shell = zsh;
-      openssh.authorizedKeys.keys = ["ssh-rsa 
-AAAAB3NzaC1yc2EAAAADAQABAAABAQDADRTn85x2+6kWlfX0s8fbPZSyKBlBRQS+szVIp8QruiOgeOfoULFjfexKbQHa9IPKAJ4Vj2MhJWQNW4qRvltEHUk6koSgjgZ6DSuUEDq3Rc5pJeDCP2k7ib2qyE0X6aDtlGHGOK1MgiALpc6aTrtxR6uE6rI8GG/cJTzk08QjExynguVWYwxyjdMegCXo+82S9ZqKVoEBIy51m5W4Vsh5jKgiM+27EnRWy6BbsvDJiEgtLBknA9X2OxDKFl75Qmo/hSZ+RypAcU4a9pBKYcF4/jOQQ+Sbn9RzFVFP66tVODdH5eZG7xnH7mpg0fHvdiuEdXfb/IZ0KK2t3WF7rnQ7 
+      openssh.authorizedKeys.keys = ["ssh-rsa
+AAAAB3NzaC1yc2EAAAADAQABAAABAQDADRTn85x2+6kWlfX0s8fbPZSyKBlBRQS+szVIp8QruiOgeOfoULFjfexKbQHa9IPKAJ4Vj2MhJWQNW4qRvltEHUk6koSgjgZ6DSuUEDq3Rc5pJeDCP2k7ib2qyE0X6aDtlGHGOK1MgiALpc6aTrtxR6uE6rI8GG/cJTzk08QjExynguVWYwxyjdMegCXo+82S9ZqKVoEBIy51m5W4Vsh5jKgiM+27EnRWy6BbsvDJiEgtLBknA9X2OxDKFl75Qmo/hSZ+RypAcU4a9pBKYcF4/jOQQ+Sbn9RzFVFP66tVODdH5eZG7xnH7mpg0fHvdiuEdXfb/IZ0KK2t3WF7rnQ7
 maiksen@faulbook"];
     };
     antigen = pkgs.fetchgit {
@@ -29,7 +29,7 @@ maiksen@faulbook"];
       group = "anna";
       extraGroups = ["smbgrp"];
       createHome = false;
-      shell = pkgs.nologin; 
+      shell = pkgs.nologin;
     };
 
 in {
@@ -47,14 +47,7 @@ in {
   networking.hostName = "samba"; # Define your hostname.
 
   # The NixOS release to be compatible with for stateful data such as databases.
-  system.stateVersion = "17.03";
-
-  # Select internationalisation properties.
-  i18n = {
-    #consoleFont = "Lat2-Terminus16";
-    consoleKeyMap = "us";
-    defaultLocale = "en_US.UTF-8";
-  };
+  system.stateVersion = "20.03";
 
   # Set your time zone.
   time.timeZone = "Europe/Berlin";
@@ -73,6 +66,7 @@ in {
      git # antigen needs it
      homesick # manage homefiles
      samba
+     borgbackup
    ];
 
   # List services that you want to enable:
@@ -83,29 +77,42 @@ in {
     ports = [41678];
     permitRootLogin = "no";
     passwordAuthentication = false;
-  };
+    allowSFTP = true;
+};
 
   system.autoUpgrade.enable = true;
-  
+  system.autoUpgrade.allowReboot = true;
+
 
   # enable samba server
   # create both users afterwards with
   # smbpasswd -a maiksen
   # smbpasswd -a anna
   services.samba = {
-    enable = true;
-    invalidUsers = ["root"];
-    extraConfig = ''
+      enable = true;
+      invalidUsers = ["root"];
+      extraConfig = ''
       security = user
       invalid users  = ["root"]
       workgroup = WORKGROUP
       netbios name = samba
-      interfaces = enp0s18
+      interfaces = ens18
       log file = /var/log/samba/myshares
       log level = 1
       map to guest = Bad User
       dns proxy = no
       server string = SambaServer
+      load printers = no
+      printcap name = /dev/null
+      map acl inherit = yes
+
+      # Security
+      client ipc max protocol = default
+      client max protocol = default
+      server max protocol = SMB3
+      client ipc min protocol = default
+      client min protocol = CORE
+      server min protocol = SMB2
 
       [data]
       path = /srv/data/
@@ -166,13 +173,20 @@ in {
       # Load the theme.
       antigen theme bira
       # Tell antigen that you're done.
-      antigen apply     
+      antigen apply
     '';
   };
+
+services.borgbackup.repos.maiksen = {
+  allowSubRepos = false;
+  authorizedKeys = ["ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQDADRTn85x2+6kWlfX0s8fbPZSyKBlBRQS+szVIp8QruiOgeOfoULFjfexKbQHa9IPKAJ4Vj2MhJWQNW4qRvltEHUk6koSgjgZ6DSuUEDq3Rc5pJeDCP2k7ib2qyE0X6aDtlGHGOK1MgiALpc6aTrtxR6uE6rI8GG/cJTzk08QjExynguVWYwxyjdMegCXo+82S9ZqKVoEBIy51m5W4Vsh5jKgiM+27EnRWy6BbsvDJiEgtLBknA9X2OxDKFl75Qmo/hSZ+RypAcU4a9pBKYcF4/jOQQ+Sbn9RzFVFP66tVODdH5eZG7xnH7mpg0fHvdiuEdXfb/IZ0KK2t3WF7rnQ7 maiksen@faulbook"];
+  group = "maiksen";
+  user = "maiksen";
+  path = "/srv/backups/maiksen";
+};
 
 networking.firewall.enable = true;
 networking.firewall.allowPing = true;
 networking.firewall.allowedTCPPorts = [ 445 139 41678 22];
 networking.firewall.allowedUDPPorts = [ 137 138 ];
-
 }
